@@ -1,0 +1,70 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.5'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'dbt.sandbox'
+version = '1.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+
+    // runtimeOnly 'com.h2database:h2'
+    implementation 'mysql:mysql-connector-java:8.0.33'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+bootRun {
+    environment([
+            'SPRING_DATASOURCE_URL': "jdbc:mysql://${db_host}:${db_port}/${db_name}",
+            'SPRING_DATASOURCE_USERNAME': "${db_user}",
+            'SPRING_DATASOURCE_PASSWORD': "${db_pass}"
+    ])
+}
+
+//These docker tasks may work on Linux but need a network bridge on Mac (and Windows?)
+task dockerBuild(type: Exec) {
+    dependsOn assemble
+    commandLine 'docker', 'build', '--build-arg', "JAR_FILE=build/libs/${project.name}-${project.version}.jar" , '-t', "${project.group}/${project.name}:latest", '.'
+}
+
+task dockerRun(type: Exec) {
+    dependsOn dockerBuild
+    commandLine 'docker', 'run', '--network', 'host', '-p', '8080:8080', "${project.group}/${project.name}:latest", '-d'
+}
+
+task dockerRunLoud(type: Exec) {
+    dependsOn dockerBuild
+    commandLine 'docker', 'run', '--network', 'host', '-p', '8080:8080', "${project.group}/${project.name}:latest"
+}
+
+task dockerStop(type: Exec) {
+    commandLine 'docker', 'stop', 'your-container-name'
+    ignoreExitValue true
+}
